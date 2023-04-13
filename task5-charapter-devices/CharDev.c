@@ -55,6 +55,7 @@ struct file_operations dev_fops = {
 		.release = dev_close,
 		.read = dev_read,
 		.write = dev_write,
+		.unlocked_ioctl = dev_ioctl,
 };
 
 static int __init matrix_init(void)
