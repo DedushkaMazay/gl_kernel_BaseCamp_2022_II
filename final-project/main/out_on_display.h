@@ -28,6 +28,7 @@
 #define ROTATE_RIGHT				0
 #define ROTATE_LEFT					1
 #define MAX_DISTANCE				400
+#define MIN_DELAY_ULTRASONIC		60
 /*HEADER*/
 #define NON	0xff
 #define GND	0xEE

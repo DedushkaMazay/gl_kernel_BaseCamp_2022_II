@@ -1,3 +1,4 @@
+#include <math.h>
 #include <curses.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -49,7 +50,7 @@ void menu(void)
 		clear();
 		printw("MENU:\n");
 		printw("\t1 - SHOW HEADER RASSPBERRY PI FOR CONNECTION\n");
-		printw("\t2 - SCAN THIS AREA\n");
+		printw("\t2 - SCAN AREA\n");
 		printw("\t3 - SHOW ULTRASONIC DESCRIPTION\n");
 		printw("\t4 - SHOW SERVO DESCRIPTION\n");
 		printw("\t5 - EXIT FROM PROGRAM\n");
@@ -342,7 +343,8 @@ void output_distance(uint32_t max_distance, uint32_t control)
 			if (direction == ROTATE_RIGHT)
 				turn_servo(current_angle + 1);
 		}
-		usleep(servo.speed * ONE_MSEC_IN_USEC);
+		if (abs(servo.speed - MIN_DELAY_ULTRASONIC) != 0)
+			usleep(abs(servo.speed - MIN_DELAY_ULTRASONIC) * ONE_MSEC_IN_USEC);
 	}
 
 
