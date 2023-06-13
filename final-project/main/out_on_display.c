@@ -53,7 +53,8 @@ void menu(void)
 		printw("\t2 - SCAN AREA\n");
 		printw("\t3 - SHOW ULTRASONIC DESCRIPTION\n");
 		printw("\t4 - SHOW SERVO DESCRIPTION\n");
-		printw("\t5 - EXIT FROM PROGRAM\n");
+		printw("\t5 - SHOW LOCAL MAP\n");
+		printw("\t6 - EXIT FROM PROGRAM\n");
 
 
 		printw("\nYour choice: ");
@@ -96,6 +97,9 @@ void menu(void)
 		case SHOW_US_DESC:
 			show_ultrasonic_description();
 			break;
+		case CREATE_MAP:
+			create_scan_map(50);
+			break;
 		case EXIT:
 			printw("\nExiting from the program\n");
 			break;
@@ -104,6 +108,7 @@ void menu(void)
 			break;
 		}
 		printw("\nPress any buttom to continue...\n");
+		nodelay(stdscr, FALSE);
 		refresh();
 		getch();
 	} while (choose != EXIT);
@@ -307,29 +312,38 @@ void output_distance(uint32_t max_distance, uint32_t control)
 		}
 
 		refresh();
-		 {//KEY READING TO CONTROL SCANNING 
-			while ((ch = getch()) != EOF) {
+		 {//KEY READING TO CONTROL SCANNING
+			if ((ch = getch()) == EOF)
+				usleep(MIN_DELAY_ULTRASONIC * ONE_MSEC_IN_USEC);
+			else do {
 				switch (ch) {
 				case KEY_LEFT_FOR_SERVO:
 				case 'a':
 				case 'A':
-					if (control == MANUAL_CONTROL)
+					if (control == MANUAL_CONTROL) {
 						turn_servo(current_angle - 1);
+						if (abs(servo.speed - MIN_DELAY_ULTRASONIC) != 0)
+							usleep(abs(servo.speed - MIN_DELAY_ULTRASONIC) * ONE_MSEC_IN_USEC);
+					}
 					break;
 				case KEY_RIGHT_FOR_SERVO:
 				case 'd':
 				case 'D':
-					if (control == MANUAL_CONTROL)
+					if (control == MANUAL_CONTROL) {
 						turn_servo(current_angle + 1);
+						if (abs(servo.speed - MIN_DELAY_ULTRASONIC) != 0)
+							usleep(abs(servo.speed - MIN_DELAY_ULTRASONIC) * ONE_MSEC_IN_USEC);
+					}
 					break;
 				case ESC_EXIT:
 				case 'q':
 				case 'Q':
 					exit = 1;
 				default:
+					usleep(MIN_DELAY_ULTRASONIC * ONE_MSEC_IN_USEC);
 					break;
 				}
-			}
+			} while ((ch = getch()) != EOF);
 		}
 		if (control == AUTO_CONTROL) {
 			if (current_angle == MAX_ANGLE)
@@ -342,9 +356,10 @@ void output_distance(uint32_t max_distance, uint32_t control)
 				turn_servo(current_angle - 1);
 			if (direction == ROTATE_RIGHT)
 				turn_servo(current_angle + 1);
-		}
-		if (abs(servo.speed - MIN_DELAY_ULTRASONIC) != 0)
+			if (abs(servo.speed - MIN_DELAY_ULTRASONIC) != 0)
 			usleep(abs(servo.speed - MIN_DELAY_ULTRASONIC) * ONE_MSEC_IN_USEC);
+		}
+		
 	}
 
 
@@ -386,4 +401,98 @@ void show_ultrasonic_description(void)
 	printw("Current angle: [%d]\n\n", current_angle);
 
 	refresh();
+}
+
+void create_scan_map(uint32_t max_distance)
+{
+	struct servo_description servo = check_description_servo();
+	int32_t current_distance, current_angle, ten_to_one = 0;
+	int8_t output_row[180] = {0};
+	int32_t scan_five_deegrees[10] = {0};
+
+	{//TURN SERVO TO DEFAULT ANGLE
+		clear();
+		printw("Rotating servo to 0...\n");
+		refresh();
+		turn_servo(MIN_ANGLE);
+		clear();
+	}
+	{//(6, 7, 8, 9) -> 5; (4, 3, 2, 1) -> 0
+		while (max_distance % 5 != 0) 
+		max_distance--;
+	}
+	{//SCANNING
+		for (current_angle = MIN_ANGLE; current_angle <= MAX_ANGLE; current_angle++) {
+			uint32_t y, x;
+			uint32_t barrier = FALSE;
+
+			getyx(stdscr, y, x);
+			y = 1;
+				
+			scan_five_deegrees[ten_to_one++] = get_distance_ultrasonic();
+
+			if ((current_angle % 10) == 0) {
+				current_distance = scan_five_deegrees[0];
+				for (uint32_t i = 0; i < ten_to_one; i++)
+					if ((current_distance > scan_five_deegrees[i]))
+						current_distance = scan_five_deegrees[i];
+				ten_to_one = 0;
+
+				for (int32_t current_line = max_distance; current_line >= 0; current_line -= 5) {
+					if (current_angle == MIN_ANGLE)
+						mvprintw(y++, x, "%3d -|-  ", current_line);
+					else {
+						if (abs(current_distance - current_line) <= 2) {
+							attron(COLOR_PAIR(RED_ON_YELLOW));
+							mvprintw(y++, x, "*****");
+							attroff(COLOR_PAIR(RED_ON_YELLOW));
+							barrier = TRUE;
+						}
+						else
+							if (barrier == TRUE) {
+								attron(COLOR_PAIR(RED_ON_YELLOW));
+								mvprintw(y++, x, "     ");
+								attroff(COLOR_PAIR(RED_ON_YELLOW));
+							} else {
+								attron(COLOR_PAIR(WHITE_ON_BLUE));
+								mvprintw(y++, x, "     ");
+								attroff(COLOR_PAIR(WHITE_ON_BLUE));
+							}
+					}
+				}
+				if (current_angle != MIN_ANGLE) {
+					mvprintw(y++, x, "-|||");
+					mvprintw(y++, x, " %3d", current_angle);
+				} else {
+					getyx(stdscr, y, x);
+					mvprintw(++y, x -= 2, "-|||");
+					mvprintw(++y, x, " %3d", current_angle);
+				}
+				refresh();
+			}
+			
+			turn_servo(current_angle + 1);
+			if (abs(servo.speed - MIN_DELAY_ULTRASONIC) != 0)
+				usleep(abs(servo.speed - MIN_DELAY_ULTRASONIC) * ONE_MSEC_IN_USEC);
+		}
+	}
+	
+	{//BORDER
+		int32_t lastX, lastY;
+		int32_t x = 0, y = 0;
+
+		getyx(stdscr, lastY, lastX);
+		lastY++;
+		lastX++;
+			for (y = 0; y <= lastY; y++) {
+				mvprintw(y, 0, "|");
+				mvprintw(y, lastX, "|");
+
+				if ((y == 0) || (y == lastY)) {
+					for (x = 0; x <= lastX; x++) {
+						mvprintw(y, x, "-");
+					}
+				}
+		}
+	}
 }

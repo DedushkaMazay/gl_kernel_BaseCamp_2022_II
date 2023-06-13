@@ -44,6 +44,7 @@ enum {
 	SCAN_ULTRASONIC,
 	SHOW_SERVO_DESC,
 	SHOW_US_DESC,
+	CREATE_MAP,
 	EXIT,
 };
 void init_color_screen(void);
@@ -52,3 +53,4 @@ void output_distance(uint32_t max_distance, uint32_t control);
 void menu(void);
 void show_servo_description(void);
 void show_ultrasonic_description(void);
+void create_scan_map(uint32_t max_distance);
